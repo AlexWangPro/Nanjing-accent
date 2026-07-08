@@ -1,21 +1,49 @@
-# 南京 AI 语音助手 Fixed / Railway 超轻量版
+# 南京 Gemini 语音助手 · 声音增强版
 
-这版修复了上一版可能出现的：
+这是一个 Railway 可部署的超轻量版本：Express + 静态页面 + Gemini REST API。
 
-```text
-Gemini returned empty text
+## 本版重点
+
+- 仍然只有一个核心依赖：express
+- 没有 Dockerfile
+- 没有 React / Vite / @google/genai
+- 强化南京本地化文本 Prompt
+- 强化 Gemini TTS 导演式 Prompt
+- 默认声音从 Kore 改为 Achird，避免过于生硬
+- 页面会明确显示：正在播放 Gemini TTS，还是已回退浏览器朗读
+- 新增“测试声音”按钮和 `/api/tts-test`
+
+## Railway Variables
+
+建议：
+
+```env
+GEMINI_API_KEY=你的 Google AI Studio API Key
+GEMINI_TEXT_MODEL=gemini-2.5-flash
+GEMINI_TTS_MODEL=gemini-3.1-flash-tts-preview
+GEMINI_TTS_VOICE=Achird
+NODE_ENV=production
 ```
 
-核心修改：
+如果 `gemini-3.1-flash-tts-preview` 不可用，可以试：
 
-- 文本对话改用稳定的 `models/{model}:generateContent` REST API
-- 默认文本模型改为 `gemini-2.5-flash`
-- 增强 Gemini 返回结构解析
-- 增强错误提示：会显示 finishReason / blockReason，而不是只显示 empty text
-- 仍然只有一个主要依赖：`express`
-- 没有 Dockerfile、没有 React、没有 Vite、没有 @google/genai、没有 npm run build
+```env
+GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
+```
 
-## 文件结构
+声音可试：
+
+```env
+GEMINI_TTS_VOICE=Sulafat
+GEMINI_TTS_VOICE=Callirrhoe
+GEMINI_TTS_VOICE=Achird
+GEMINI_TTS_VOICE=Aoede
+GEMINI_TTS_VOICE=Puck
+```
+
+## 部署文件
+
+仓库根目录只保留：
 
 ```text
 public/
@@ -26,76 +54,24 @@ README.md
 .gitignore
 ```
 
-## Railway Variables
-
-必须添加：
-
-```env
-GEMINI_API_KEY=你的 Google AI Studio API Key
-```
-
-建议添加：
-
-```env
-GEMINI_TEXT_MODEL=gemini-2.5-flash
-GEMINI_TTS_MODEL=gemini-3.1-flash-tts-preview
-GEMINI_TTS_VOICE=Kore
-NODE_ENV=production
-```
-
-如果 `gemini-2.5-flash` 不可用，可以试：
-
-```env
-GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
-```
-
-## 部署步骤
-
-1. 新建 GitHub 仓库
-2. 只上传本目录里的文件
-3. Railway → New Project → Deploy from GitHub repo
-4. 添加 Variables
-5. 生成 Domain
-
-## 正确的 Build Log 应该类似
-
-```text
-npm install --omit=dev --no-audit --no-fund
-npm start
-```
-
-如果你看到以下内容，说明你还在部署旧仓库：
+不要上传：
 
 ```text
 Dockerfile
-npm ci
-npm run build
-vite
-@google/genai
+vite.config.js
+src/
+client/
+node_modules/
+package-lock.json
 ```
 
-## 测试接口
+## 判断你听到的是不是 Gemini TTS
 
-访问：
+打开网页点击“测试声音”。
 
-```text
-/api/health
-```
+- 如果状态显示 `Gemini TTS 测试成功`，说明听到的是 Gemini TTS。
+- 如果状态显示 `Gemini TTS 失败，已回退浏览器朗读`，说明听到的是浏览器机器人声音，需要看 Railway Logs 里的 `[tts error]`。
 
-确认：
+## 局限
 
-```json
-{
-  "ok": true,
-  "hasGeminiKey": true,
-  "textModel": "gemini-2.5-flash"
-}
-```
-
-还可以访问：
-
-```text
-/api/models
-```
-
-它会列出你的 API Key 当前可用的模型，用来确认模型名是否可用。
+Gemini TTS 可以控制语气、语速、风格和轻微口音，但它不是专门训练的南京方言 TTS。真正像南京本地人的声音，需要后期用南京本地人录音做专属 TTS/声音克隆。

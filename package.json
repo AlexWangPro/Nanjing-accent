@@ -1,7 +1,7 @@
 {
-  "name": "nanjing-gemini-ultralite",
-  "version": "1.0.0",
-  "description": "Ultra-light Railway deployable Nanjing local-style Gemini voice assistant.",
+  "name": "nanjing-gemini-nanjing-voice-v2",
+  "version": "2.0.0",
+  "description": "Ultra-light Railway deployable Nanjing local-style Gemini voice assistant with improved TTS prompting.",
   "type": "module",
   "main": "server.js",
   "scripts": {

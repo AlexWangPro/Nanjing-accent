@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>南京 AI 语音助手 Fixed</title>
+  <title>南京 AI 语音助手 · 声音增强版</title>
   <style>
     :root {
       --bg: #0f1117;
@@ -179,9 +179,9 @@
     <header>
       <div class="brand">
         <h1>南京 AI 语音助手</h1>
-        <p>Fixed Railway 版：修复 Gemini empty text，先稳定跑通。</p>
+        <p>声音增强版：优先 Gemini TTS，明确显示是否回退浏览器朗读。</p>
       </div>
-      <div class="badge">Gemini GenerateContent · Express · No Build</div>
+      <div class="badge">Gemini TTS · 南京味增强 · No Build</div>
     </header>
 
     <section class="panel">
@@ -195,11 +195,12 @@
           </select>
         </label>
         <button class="secondary" id="healthBtn">检查后端</button>
+        <button class="secondary" id="ttsTestBtn">测试声音</button>
         <span class="status" id="status">准备好了</span>
       </div>
 
       <div class="chat" id="chat">
-        <div class="msg bot">你好啊，我是南京 AI 助手。你可以打字，也可以点麦克风试试看。</div>
+        <div class="msg bot">你好啊，我是南京 AI 助手。现在这版会优先用 Gemini TTS；如果回退浏览器朗读，页面会直接提示。</div>
       </div>
 
       <div class="composer">
@@ -210,7 +211,7 @@
     </section>
 
     <div class="tips">
-      语音输入使用浏览器自带识别能力。Chrome 通常支持最好；如果按钮不可用，直接打字测试。语音输出优先 Gemini TTS，失败时自动用浏览器中文朗读。
+      语音输入使用浏览器自带识别能力。语音输出优先 Gemini TTS；如果你看到“已回退浏览器朗读”，说明你听到的是系统自带机器人声音，需要检查 Railway 的 TTS 日志或模型变量。
     </div>
   </main>
 
@@ -220,6 +221,7 @@
     const sendBtn = document.getElementById('sendBtn');
     const micBtn = document.getElementById('micBtn');
     const healthBtn = document.getElementById('healthBtn');
+    const ttsTestBtn = document.getElementById('ttsTestBtn');
     const mode = document.getElementById('mode');
     const statusEl = document.getElementById('status');
 
@@ -245,18 +247,22 @@
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
+          body: JSON.stringify({ text, mode: mode.value })
         });
         if (!res.ok) throw new Error('TTS unavailable');
         const data = await res.json();
         if (!data.audioBase64) throw new Error('No audio');
+        setStatus(`正在播放 Gemini TTS：${data.voice || 'voice'} · ${data.model || 'model'}`, 'ok');
         const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
         await audio.play();
       } catch (err) {
+        console.warn('Gemini TTS failed, using browser fallback:', err);
+        setStatus('Gemini TTS 失败，已回退浏览器朗读。去 Railway Logs 看 [tts error]', 'err');
         if ('speechSynthesis' in window) {
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'zh-CN';
-          u.rate = 0.95;
+          u.rate = 0.88;
+          u.pitch = 1.03;
           window.speechSynthesis.cancel();
           window.speechSynthesis.speak(u);
         }
@@ -282,7 +288,7 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || '请求失败');
         pending.textContent = data.reply;
-        setStatus('回复完成', 'ok');
+        setStatus('文字回复完成，正在生成语音…', 'ok');
         speakWithGemini(data.reply);
       } catch (err) {
         pending.textContent = '出错了：' + err.message;
@@ -308,6 +314,21 @@
         setStatus(data.hasGeminiKey ? `后端正常，模型：${data.textModel}` : '后端正常，但缺少 GEMINI_API_KEY', data.hasGeminiKey ? 'ok' : 'err');
       } catch {
         setStatus('后端连接失败', 'err');
+      }
+    });
+
+
+    ttsTestBtn.addEventListener('click', async () => {
+      setStatus('正在测试 Gemini TTS…');
+      try {
+        const res = await fetch('/api/tts-test');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.audioBase64) throw new Error(data.error || 'TTS 测试失败');
+        setStatus(`Gemini TTS 测试成功：${data.voice || ''} · ${data.model || ''}`, 'ok');
+        const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
+        await audio.play();
+      } catch (err) {
+        setStatus('TTS 测试失败：' + err.message, 'err');
       }
     });
 
