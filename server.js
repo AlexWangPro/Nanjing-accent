@@ -10,64 +10,196 @@ const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
-// 3.1 supports streaming and expressive tags. 2.5 flash preview tts is often available earlier.
 const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-3.1-flash-tts-preview';
-// Kore is firm and can sound stiff. Achird/Sulafat/Callirrhoe are usually friendlier choices.
 const GEMINI_TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Achird';
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-function getStyleInstruction(mode = 'local') {
-  const base = [
-    '你是一个南京本土化AI语音助手。',
-    '回答必须适合语音播放：短句、多停顿、自然聊天感。',
-    '不要像新闻播音，不要像客服话术，不要堆砌方言。',
-    '你的目标不是“纯方言表演”，而是“南京本地朋友在旁边跟你说话”。',
-    '回答一般控制在 2 到 5 句话，除非用户要求详细解释。',
-    '如果用户问现实信息、路线、票价、营业时间等可能变化的内容，请提醒用户以最新官方信息为准。'
-  ].join('\n');
-
-  if (mode === 'normal') {
-    return `${base}\n模式：标准中文。自然友好，尽量口语化，不使用南京话。`;
-  }
-
-  if (mode === 'dialect') {
-    return `${base}\n模式：轻南京话。普通话为骨架，南京本地说法更明显一些，但必须外地人也能听懂。\n可自然少量使用：阿是、蛮、来斯、稳当、不丑、今儿个、落雨、晓得、得空、莫慌、要得、搞搞看。\n注意：每次最多用 2 到 4 个南京表达，不能每句话都塞方言。`;
-  }
-
-  return `${base}\n模式：南京味普通话。普通话为主，像南京本地朋友一样说，偶尔带一点南京表达。\n可自然少量使用：蛮、稳当、不丑、今儿、晓得、莫慌、得空、要得。\n注意：每次最多用 1 到 3 个南京表达，保持自然。`;
+function normalizeMode(mode = 'local') {
+  return ['normal', 'local', 'dialect', 'deep'].includes(mode) ? mode : 'local';
 }
 
-function getTtsDirectorPrompt(text, mode = 'local') {
-  const clean = String(text || '')
-    .replace(/[*#>`_~]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function normalizeAccent(accent = 'strong') {
+  return ['light', 'strong', 'old'].includes(accent) ? accent : 'strong';
+}
 
+function getDialectGuide(mode = 'local', accent = 'strong') {
   if (mode === 'normal') {
-    return [
-      'Audio Profile: A warm, friendly Mandarin Chinese conversational assistant. Not a news anchor, not robotic, not overly formal.',
-      'Scene: A relaxed one-on-one chat on a phone app.',
-      'Director Notes: Speak naturally with gentle pauses, slightly slower than normal, clear but casual. Do not read these instructions aloud. Only perform the transcript.',
-      `[warm, conversational, relaxed pace] ${clean}`
-    ].join('\n');
+    return {
+      name: '标准中文',
+      intensity: '无南京话',
+      maxLocalWords: 0,
+      words: '',
+      notes: '自然友好，使用标准中文，不要使用南京话。'
+    };
+  }
+
+  if (mode === 'local' && accent === 'light') {
+    return {
+      name: '南京味普通话',
+      intensity: '轻度南京口吻',
+      maxLocalWords: 2,
+      words: '蛮、稳当、不丑、今儿、晓得、莫慌、得空、要得',
+      notes: '普通话为主，只轻轻带一点南京本地口吻。不要刻意表演方言。'
+    };
+  }
+
+  if (mode === 'local') {
+    return {
+      name: '南京口音普通话',
+      intensity: accent === 'old' ? '老南京口吻试验' : '明显南京味',
+      maxLocalWords: accent === 'old' ? 5 : 4,
+      words: '阿是、蛮、来斯、稳当、不丑、今儿个、落雨、晓得、得空、莫慌、要得、搞搞看、乖乖',
+      notes: accent === 'old'
+        ? '像老南京街坊聊天，表达更接地气，但仍保持清楚易懂。偶尔可以用“阿是”“乖乖”“来斯”，不要每句话都用。'
+        : '像南京本地朋友说普通话，南京味明显一点，但不要变成夸张小品。'
+    };
   }
 
   if (mode === 'dialect') {
+    return {
+      name: '轻南京话',
+      intensity: accent === 'old' ? '老南京话增强' : '南京话增强',
+      maxLocalWords: accent === 'old' ? 7 : 5,
+      words: '阿是、蛮、来斯、稳当、不丑、今儿个、落雨、晓得、得空、莫慌、要得、搞搞看、乖乖、韶韶、这边厢',
+      notes: '普通话骨架 + 南京本地短句。外地人要能听懂。多用短句、多停顿，不要写成难懂的方言文字。'
+    };
+  }
+
+  return {
+    name: '老南京试验模式',
+    intensity: '最强南京口吻',
+    maxLocalWords: 8,
+    words: '阿是、蛮、来斯、稳当、不丑、今儿个、落雨、晓得、得空、莫慌、要得、搞搞看、乖乖、韶韶、甭急、得嘞',
+    notes: '尽量像南京本地街坊，但必须可懂、自然、不油腻。不要长篇大论，不要为了方言牺牲信息准确。'
+  };
+}
+
+function getStyleInstruction(mode = 'local', accent = 'strong') {
+  const m = normalizeMode(mode);
+  const a = normalizeAccent(accent);
+  const guide = getDialectGuide(m, a);
+
+  const base = [
+    '你是一个南京本土化AI语音助手。',
+    '回答必须适合语音播放：短句、多停顿、像真人聊天，不像书面文章。',
+    '不要像新闻播音，不要像正式客服，不要堆砌方言。',
+    '核心目标：像南京本地朋友在旁边跟用户说话。',
+    '回答一般控制在 2 到 5 句话，除非用户要求详细解释。',
+    '如果用户问现实信息、路线、票价、营业时间、政策、活动等可能变化的内容，请提醒用户以最新官方信息为准。'
+  ].join('\n');
+
+  return [
+    base,
+    `当前模式：${guide.name}`,
+    `南京味强度：${guide.intensity}`,
+    `可用南京表达：${guide.words || '无'}`,
+    `使用限制：整段回答最多自然使用 ${guide.maxLocalWords} 个南京表达。`,
+    `风格说明：${guide.notes}`,
+    '严禁：为了像方言而胡乱造词；严禁：每句话都塞“阿是/蛮/要得”；严禁：四川、东北、广东、台湾腔。',
+    '输出要求：只输出给用户听的回答，不要解释你的规则。'
+  ].join('\n');
+}
+
+function cleanForSpeech(text) {
+  return String(text || '')
+    .replace(/[*#>`_~]/g, '')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function limitedReplace(text, search, replacement, limit = 1) {
+  let count = 0;
+  return text.replace(search, (...args) => {
+    if (count >= limit) return args[0];
+    count += 1;
+    return typeof replacement === 'function' ? replacement(...args) : replacement;
+  });
+}
+
+function addGentlePauses(text) {
+  return text
+    .replace(/。/g, '。 ')
+    .replace(/，/g, '， ')
+    .replace(/！/g, '！ ')
+    .replace(/？/g, '？ ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function makeNanjingSpeechScript(text, mode = 'local', accent = 'strong') {
+  const m = normalizeMode(mode);
+  const a = normalizeAccent(accent);
+  let s = cleanForSpeech(text);
+  if (!s) return s;
+  if (m === 'normal') return addGentlePauses(s);
+
+  const limit = a === 'light' ? 1 : a === 'strong' ? 2 : 3;
+
+  s = limitedReplace(s, /今天/g, '今儿个', limit);
+  s = limitedReplace(s, /明天/g, '明儿', limit);
+  s = limitedReplace(s, /现在/g, '这会儿', limit);
+  s = limitedReplace(s, /下雨/g, '落雨', limit);
+  s = limitedReplace(s, /知道/g, '晓得', limit);
+  s = limitedReplace(s, /可以/g, '要得', limit);
+  s = limitedReplace(s, /不错/g, '不丑', limit);
+  s = limitedReplace(s, /很好/g, '蛮好', limit);
+  s = limitedReplace(s, /非常/g, '蛮', limit);
+  s = limitedReplace(s, /很/g, '蛮', limit);
+  s = limitedReplace(s, /有空/g, '得空', limit);
+  s = limitedReplace(s, /不要急/g, '莫慌', limit);
+  s = limitedReplace(s, /别着急/g, '莫慌', limit);
+  s = limitedReplace(s, /稍等一下/g, '等一小会儿', limit);
+  s = limitedReplace(s, /试一下/g, '试一下下', limit);
+  s = limitedReplace(s, /看一下/g, '看一下下', limit);
+  s = limitedReplace(s, /怎么办/g, '怎么搞', limit);
+  s = limitedReplace(s, /什么/g, '啥', a === 'old' ? 2 : 1);
+
+  // Add one natural local marker only if the sentence lacks local flavor.
+  const hasLocalMarker = /(阿是|蛮|来斯|稳当|不丑|今儿|落雨|晓得|得空|莫慌|要得|搞搞看|乖乖)/.test(s);
+  if (!hasLocalMarker && m !== 'normal') {
+    if (a === 'light') s = `嗯，${s}`;
+    if (a === 'strong') s = `嗯，这么说吧，${s}`;
+    if (a === 'old') s = `乖乖，这么说吧，${s}`;
+  }
+
+  if (m === 'deep' || (m === 'dialect' && a === 'old')) {
+    s = limitedReplace(s, /你觉得呢？?$/g, '你看阿是这么个理儿？', 1);
+    if (!/[。！？]$/.test(s)) s += '。';
+    if (!/(要得|莫慌|稳当)[。！？]?$/.test(s) && s.length < 90) s += ' 要得。';
+  }
+
+  return addGentlePauses(s);
+}
+
+function getTtsDirectorPrompt(text, mode = 'local', accent = 'strong') {
+  const m = normalizeMode(mode);
+  const a = normalizeAccent(accent);
+  const script = makeNanjingSpeechScript(text, m, a);
+
+  if (m === 'normal') {
     return [
-      'Audio Profile: A friendly local Nanjing speaker using Mandarin with a light Nanjing/Jianghuai local flavor. Warm, practical, down-to-earth.',
-      'Scene: A Nanjing local friend talking casually, not performing dialect on stage.',
-      'Director Notes: Keep Mandarin intelligible, but use relaxed Nanjing local rhythm, casual intonation, short pauses, and a little smile in the voice. Avoid announcer style and avoid robotic flatness. Do not read these instructions aloud. Only perform the transcript.',
-      `[friendly, casual, natural Mandarin with subtle Nanjing local accent, relaxed pace] ${clean}`
+      'Audio Profile: Warm, friendly Mandarin Chinese conversational assistant. Not a news anchor, not robotic, not overly formal.',
+      'Director Notes: Speak naturally with gentle pauses, slightly relaxed pace, clear casual Mandarin. Do not read these instructions aloud. Only perform the transcript.',
+      `[warm, conversational, relaxed pace] ${script}`
     ].join('\n');
   }
 
+  const intensityLine = a === 'light'
+    ? 'Use only a subtle Nanjing local flavor. Keep it very intelligible.'
+    : a === 'strong'
+      ? 'Use a clearly Nanjing/Jianghuai Mandarin local accent, but do not exaggerate or become theatrical.'
+      : 'Use a warmer older-Nanjing street-neighbor feeling: down-to-earth, relaxed, lightly Jianghuai Mandarin, still intelligible.';
+
   return [
-    'Audio Profile: A warm Nanjing local friend speaking Mandarin with subtle local flavor. Friendly, everyday, practical, not exaggerated.',
-    'Scene: A relaxed chat in Nanjing, like someone beside you giving a small suggestion.',
-    'Director Notes: Speak naturally, with a little Nanjing local intonation, gentle pauses, and conversational warmth. Do not sound like a robot, news anchor, or formal customer service. Do not read these instructions aloud. Only perform the transcript.',
-    `[warm, conversational, slight Nanjing local vibe, relaxed pace] ${clean}`
+    'Audio Profile: A native-feeling Nanjing local friend speaking Mandarin with Nanjing/Jianghuai Mandarin flavor.',
+    'Important Accent Boundary: Do NOT use Beijing erhua, Sichuan accent, Cantonese accent, Taiwanese accent, or news-anchor Mandarin.',
+    intensityLine,
+    'Director Notes: Relaxed syllable endings, softer retroflex sound, casual local rhythm, slightly smiling voice, short natural pauses. Speak like a real person beside the user, not like a robot or formal customer service.',
+    'Do not read these instructions aloud. Only perform the transcript below.',
+    `[native-feeling Nanjing-accented Mandarin, warm, casual, grounded, relaxed pace] ${script}`
   ].join('\n');
 }
 
@@ -127,28 +259,32 @@ function pcmToWavBase64(pcmBase64, sampleRate = 24000, channels = 1, bitsPerSamp
   return buffer.toString('base64');
 }
 
-async function callGeminiText(input, mode) {
+async function callGeminiText(input, mode, accent) {
   if (!GEMINI_API_KEY) throw new Error('Missing GEMINI_API_KEY');
 
   const model = GEMINI_TEXT_MODEL.replace(/^models\//, '');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
 
+  const m = normalizeMode(mode);
+  const a = normalizeAccent(accent);
+  const temperature = m === 'normal' ? 0.75 : a === 'old' || m === 'deep' ? 1.05 : 0.95;
+
   const body = {
     systemInstruction: {
-      parts: [{ text: getStyleInstruction(mode) }]
+      parts: [{ text: getStyleInstruction(m, a) }]
     },
     contents: [
       {
         role: 'user',
         parts: [
           {
-            text: `用户：${input}\n\n请直接给出回答，不要解释你的风格规则。`
+            text: `用户：${input}\n\n请直接给出回答。要自然，不要解释你用了什么南京话。`
           }
         ]
       }
     ],
     generationConfig: {
-      temperature: mode === 'normal' ? 0.75 : 0.95,
+      temperature,
       topP: 0.95,
       maxOutputTokens: 520
     }
@@ -202,19 +338,16 @@ function getPartData(part) {
 function parseAudioRate(mime = '') {
   const match = String(mime).match(/rate=(\d+)/i);
   if (match) return Number(match[1]);
-  // Gemini TTS examples write raw PCM as WAV at 24 kHz.
   return 24000;
 }
 
 function extractPcmAudio(data) {
   const candidates = [];
 
-  // Interactions SDK-style response from official examples.
   if (data?.output_audio?.data) {
     candidates.push({ data: data.output_audio.data, mime: data.output_audio.mime_type || data.output_audio.mimeType || 'audio/l16' });
   }
 
-  // Interactions REST response may return audio in steps[].content[].
   if (Array.isArray(data?.steps)) {
     for (const step of data.steps) {
       const content = Array.isArray(step?.content) ? step.content : [];
@@ -224,7 +357,6 @@ function extractPcmAudio(data) {
     }
   }
 
-  // Streaming/event-like shapes, kept for resilience.
   const maybeEvents = Array.isArray(data?.events) ? data.events : [];
   for (const event of maybeEvents) {
     if (event?.delta?.type === 'audio' && event?.delta?.data) {
@@ -235,7 +367,6 @@ function extractPcmAudio(data) {
     }
   }
 
-  // GenerateContent-style shape, in case Google routes it that way.
   const parts = data?.candidates?.[0]?.content?.parts || [];
   for (const part of parts) {
     candidates.push({ data: getPartData(part), mime: getPartMime(part) });
@@ -252,10 +383,12 @@ function extractPcmAudio(data) {
   return { pcmBase64: '', sampleRate: 24000, mime: '' };
 }
 
-async function callGeminiTts(text, mode) {
+async function callGeminiTts(text, mode, accent) {
   if (!GEMINI_API_KEY) throw new Error('Missing GEMINI_API_KEY');
 
-  const prompt = getTtsDirectorPrompt(text, mode);
+  const m = normalizeMode(mode);
+  const a = normalizeAccent(accent);
+  const prompt = getTtsDirectorPrompt(text, m, a);
 
   const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
@@ -294,14 +427,17 @@ async function callGeminiTts(text, mode) {
     throw new Error('Gemini returned audio response, but no readable audio data was found');
   }
 
-  console.log('[tts audio ok]', { mime: audio.mime, sampleRate: audio.sampleRate, base64Length: audio.pcmBase64.length });
-  return pcmToWavBase64(audio.pcmBase64, audio.sampleRate);
+  console.log('[tts audio ok]', { mime: audio.mime, sampleRate: audio.sampleRate, base64Length: audio.pcmBase64.length, mode: m, accent: a });
+  return {
+    audioBase64: pcmToWavBase64(audio.pcmBase64, audio.sampleRate),
+    speechScript: makeNanjingSpeechScript(text, m, a)
+  };
 }
 
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
-    app: 'nanjing-gemini-nanjing-voice-v3',
+    app: 'nanjing-gemini-nanjing-voice-v4',
     hasGeminiKey: Boolean(GEMINI_API_KEY),
     textModel: GEMINI_TEXT_MODEL,
     ttsModel: GEMINI_TTS_MODEL,
@@ -333,11 +469,12 @@ app.get('/api/models', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   try {
     const message = String(req.body?.message || '').trim();
-    const mode = String(req.body?.mode || 'local');
+    const mode = normalizeMode(req.body?.mode || 'local');
+    const accent = normalizeAccent(req.body?.accent || 'strong');
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const reply = await callGeminiText(message, mode);
-    res.json({ reply, model: GEMINI_TEXT_MODEL });
+    const reply = await callGeminiText(message, mode, accent);
+    res.json({ reply, model: GEMINI_TEXT_MODEL, mode, accent });
   } catch (error) {
     console.error('[chat error]', error);
     res.status(500).json({ error: error.message || 'Chat failed' });
@@ -347,14 +484,22 @@ app.post('/api/chat', async (req, res) => {
 app.post('/api/tts', async (req, res) => {
   try {
     const text = String(req.body?.text || '').trim();
-    const mode = String(req.body?.mode || 'local');
+    const mode = normalizeMode(req.body?.mode || 'local');
+    const accent = normalizeAccent(req.body?.accent || 'strong');
     if (!text) return res.status(400).json({ error: 'Text is required' });
 
-    const audioBase64 = await callGeminiTts(text, mode);
-    res.json({ audioBase64, mimeType: 'audio/wav', engine: 'gemini', voice: GEMINI_TTS_VOICE, model: GEMINI_TTS_MODEL });
+    const result = await callGeminiTts(text, mode, accent);
+    res.json({
+      audioBase64: result.audioBase64,
+      speechScript: result.speechScript,
+      mimeType: 'audio/wav',
+      engine: 'gemini',
+      voice: GEMINI_TTS_VOICE,
+      model: GEMINI_TTS_MODEL,
+      mode,
+      accent
+    });
   } catch (error) {
-    // This endpoint is optional. The front-end can fall back to browser speech synthesis,
-    // but it now displays that fallback clearly so you know what you are hearing.
     console.error('[tts error]', error);
     res.status(500).json({ error: error.message || 'TTS failed' });
   }
@@ -362,9 +507,15 @@ app.post('/api/tts', async (req, res) => {
 
 app.get('/api/tts-test', async (req, res) => {
   try {
-    const sample = '今儿个先试一下声音，听听这个南京味儿阿是自然一点。莫慌，我们一步一步调。';
-    const audioBase64 = await callGeminiTts(sample, 'dialect');
-    res.json({ ok: true, audioBase64, mimeType: 'audio/wav', engine: 'gemini', voice: GEMINI_TTS_VOICE, model: GEMINI_TTS_MODEL });
+    const mode = normalizeMode(req.query.mode || 'dialect');
+    const accent = normalizeAccent(req.query.accent || 'strong');
+    const sampleByAccent = {
+      light: '今儿先试一下声音，听听这个南京味是不是自然一点。莫慌，我们一步一步调。',
+      strong: '今儿个先试一下声音，听听这个南京味儿阿是自然一点。莫慌，这事儿我们慢慢搞，蛮稳当。',
+      old: '乖乖，今儿个先试一下声音，听听这个南京口音阿是更像本地人。莫慌，咱们慢慢搞，蛮来斯。'
+    };
+    const result = await callGeminiTts(sampleByAccent[accent], mode, accent);
+    res.json({ ok: true, audioBase64: result.audioBase64, speechScript: result.speechScript, mimeType: 'audio/wav', engine: 'gemini', voice: GEMINI_TTS_VOICE, model: GEMINI_TTS_MODEL, mode, accent });
   } catch (error) {
     console.error('[tts-test error]', error);
     res.status(500).json({ ok: false, error: error.message || 'TTS test failed' });
@@ -376,5 +527,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Nanjing Gemini Voice V3 running on 0.0.0.0:${PORT}`);
+  console.log(`Nanjing Gemini Voice V4 running on 0.0.0.0:${PORT}`);
 });

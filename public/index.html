@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>南京 AI 语音助手 · 声音修复版 V3</title>
+  <title>南京 AI 语音助手 · 南京口音强化版 V4</title>
   <style>
     :root {
       --bg: #0f1117;
@@ -27,146 +27,32 @@
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
     }
-    .app {
-      width: min(980px, 94vw);
-      margin: 0 auto;
-      padding: 36px 0 28px;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 22px;
-    }
-    .brand h1 {
-      margin: 0 0 8px;
-      font-size: clamp(28px, 4vw, 46px);
-      letter-spacing: -0.04em;
-    }
-    .brand p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-    .badge {
-      padding: 9px 13px;
-      border-radius: 999px;
-      background: var(--panel);
-      color: var(--accent2);
-      border: 1px solid rgba(255,255,255,.1);
-      white-space: nowrap;
-    }
-    .panel {
-      background: rgba(15,17,23,.74);
-      border: 1px solid rgba(255,255,255,.12);
-      box-shadow: 0 24px 90px rgba(0,0,0,.32);
-      border-radius: 28px;
-      overflow: hidden;
-      backdrop-filter: blur(18px);
-    }
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      padding: 18px;
-      border-bottom: 1px solid rgba(255,255,255,.1);
-      background: rgba(255,255,255,.03);
-    }
-    select, button, textarea {
-      font: inherit;
-    }
-    select {
-      background: var(--panel2);
-      color: var(--text);
-      border: 1px solid rgba(255,255,255,.16);
-      border-radius: 14px;
-      padding: 10px 13px;
-      outline: none;
-    }
-    .status {
-      color: var(--muted);
-      margin-left: auto;
-      font-size: 14px;
-    }
+    .app { width: min(1020px, 94vw); margin: 0 auto; padding: 36px 0 28px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+    .brand h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 46px); letter-spacing: -0.04em; }
+    .brand p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .badge { padding: 9px 13px; border-radius: 999px; background: var(--panel); color: var(--accent2); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; }
+    .panel { background: rgba(15,17,23,.74); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 24px 90px rgba(0,0,0,.32); border-radius: 28px; overflow: hidden; backdrop-filter: blur(18px); }
+    .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px; border-bottom: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); }
+    select, button, textarea { font: inherit; }
+    select { background: var(--panel2); color: var(--text); border: 1px solid rgba(255,255,255,.16); border-radius: 14px; padding: 10px 13px; outline: none; }
+    .status { color: var(--muted); margin-left: auto; font-size: 14px; }
     .status.ok { color: var(--ok); }
     .status.err { color: var(--danger); }
-    .chat {
-      height: min(58vh, 560px);
-      overflow: auto;
-      padding: 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .msg {
-      max-width: 82%;
-      padding: 14px 16px;
-      border-radius: 18px;
-      line-height: 1.62;
-      white-space: pre-wrap;
-    }
-    .msg.user {
-      align-self: flex-end;
-      background: linear-gradient(135deg, var(--accent), #ffad69);
-      color: #1b0d04;
-      border-bottom-right-radius: 6px;
-    }
-    .msg.bot {
-      align-self: flex-start;
-      background: rgba(255,255,255,.1);
-      border: 1px solid rgba(255,255,255,.1);
-      border-bottom-left-radius: 6px;
-    }
-    .composer {
-      padding: 18px;
-      border-top: 1px solid rgba(255,255,255,.1);
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 12px;
-      align-items: end;
-    }
-    textarea {
-      width: 100%;
-      min-height: 54px;
-      max-height: 150px;
-      resize: vertical;
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 18px;
-      padding: 14px 15px;
-      color: var(--text);
-      background: rgba(255,255,255,.08);
-      outline: none;
-      line-height: 1.5;
-    }
-    button {
-      border: 0;
-      border-radius: 16px;
-      padding: 14px 18px;
-      cursor: pointer;
-      color: #1b0d04;
-      background: var(--accent);
-      font-weight: 700;
-      min-height: 54px;
-    }
-    button.secondary {
-      color: var(--text);
-      background: rgba(255,255,255,.11);
-      border: 1px solid rgba(255,255,255,.14);
-    }
-    button:disabled {
-      cursor: not-allowed;
-      opacity: .58;
-    }
-    .tips {
-      margin-top: 14px;
-      color: var(--muted);
-      line-height: 1.7;
-      font-size: 14px;
-    }
+    .chat { height: min(58vh, 560px); overflow: auto; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+    .msg { max-width: 82%; padding: 14px 16px; border-radius: 18px; line-height: 1.62; white-space: pre-wrap; }
+    .msg.user { align-self: flex-end; background: linear-gradient(135deg, var(--accent), #ffad69); color: #1b0d04; border-bottom-right-radius: 6px; }
+    .msg.bot { align-self: flex-start; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.1); border-bottom-left-radius: 6px; }
+    .meta { margin-top: 8px; font-size: 12px; color: var(--muted); border-top: 1px solid rgba(255,255,255,.1); padding-top: 8px; }
+    .composer { padding: 18px; border-top: 1px solid rgba(255,255,255,.1); display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: end; }
+    textarea { width: 100%; min-height: 54px; max-height: 150px; resize: vertical; border: 1px solid rgba(255,255,255,.15); border-radius: 18px; padding: 14px 15px; color: var(--text); background: rgba(255,255,255,.08); outline: none; line-height: 1.5; }
+    button { border: 0; border-radius: 16px; padding: 14px 18px; cursor: pointer; color: #1b0d04; background: var(--accent); font-weight: 700; min-height: 54px; }
+    button.secondary { color: var(--text); background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.14); }
+    button:disabled { cursor: not-allowed; opacity: .58; }
+    .tips { margin-top: 14px; color: var(--muted); line-height: 1.7; font-size: 14px; }
     code { color: var(--accent2); }
-    @media (max-width: 720px) {
+    .accent-note { color: var(--accent2); }
+    @media (max-width: 760px) {
       header { align-items: flex-start; flex-direction: column; }
       .composer { grid-template-columns: 1fr; }
       .msg { max-width: 94%; }
@@ -179,9 +65,9 @@
     <header>
       <div class="brand">
         <h1>南京 AI 语音助手</h1>
-        <p>声音修复版 V3：优先 Gemini TTS，明确显示是否回退浏览器朗读。</p>
+        <p>V4：南京口音强化，加入强度控制、南京话脚本、Gemini TTS 导演式口音提示。</p>
       </div>
-      <div class="badge">Gemini TTS 修复 · PCM转WAV · No Build</div>
+      <div class="badge">南京口音增强 · Gemini TTS · No Build</div>
     </header>
 
     <section class="panel">
@@ -191,27 +77,36 @@
           <select id="mode">
             <option value="local" selected>南京味普通话</option>
             <option value="dialect">轻南京话</option>
+            <option value="deep">老南京试验</option>
             <option value="normal">普通话</option>
           </select>
         </label>
+        <label>
+          口音强度：
+          <select id="accent">
+            <option value="light">轻一点</option>
+            <option value="strong" selected>来点南京味</option>
+            <option value="old">老南京一点</option>
+          </select>
+        </label>
         <button class="secondary" id="healthBtn">检查后端</button>
-        <button class="secondary" id="ttsTestBtn">测试声音</button>
+        <button class="secondary" id="ttsTestBtn">测试南京口音</button>
         <span class="status" id="status">准备好了</span>
       </div>
 
       <div class="chat" id="chat">
-        <div class="msg bot">你好啊，我是南京 AI 助手。现在这版修复了 Gemini 返回 audio/l16 但前端无法播放的问题；如果回退浏览器朗读，页面会直接提示。</div>
+        <div class="msg bot">你好啊，我是南京 AI 助手。V4 把南京味推得更明显一点了：文字会更本地化，TTS 也会收到更强的南京/Jianghuai Mandarin 口音提示。先点“测试南京口音”听一下。</div>
       </div>
 
       <div class="composer">
-        <textarea id="input" placeholder="比如：今天南京适合去哪玩？"></textarea>
+        <textarea id="input" placeholder="比如：今天南京适合去哪玩？或者：我今天有点累，你安慰我两句。"></textarea>
         <button class="secondary" id="micBtn">🎙️ 说话</button>
         <button id="sendBtn">发送</button>
       </div>
     </section>
 
     <div class="tips">
-      语音输入使用浏览器自带识别能力。语音输出优先 Gemini TTS；如果你看到“已回退浏览器朗读”，说明你听到的是系统自带机器人声音，需要检查 Railway 的 TTS 日志或模型变量。
+      <span class="accent-note">提示：</span>V4 会尽量把 Gemini TTS 往“南京腔普通话”推，但通用 TTS 不是南京本地人声库。真正原生南京口音，需要后续接南京本地人录音的声音克隆或微调 TTS 服务。
     </div>
   </main>
 
@@ -223,6 +118,7 @@
     const healthBtn = document.getElementById('healthBtn');
     const ttsTestBtn = document.getElementById('ttsTestBtn');
     const mode = document.getElementById('mode');
+    const accent = document.getElementById('accent');
     const statusEl = document.getElementById('status');
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -233,26 +129,44 @@
       statusEl.className = 'status ' + type;
     }
 
-    function addMessage(role, text) {
+    function addMessage(role, text, meta = '') {
       const el = document.createElement('div');
       el.className = 'msg ' + role;
       el.textContent = text;
+      if (meta) {
+        const metaEl = document.createElement('div');
+        metaEl.className = 'meta';
+        metaEl.textContent = meta;
+        el.appendChild(metaEl);
+      }
       chat.appendChild(el);
       chat.scrollTop = chat.scrollHeight;
       return el;
     }
 
-    async function speakWithGemini(text) {
+    function appendMeta(messageEl, meta) {
+      if (!meta) return;
+      const metaEl = document.createElement('div');
+      metaEl.className = 'meta';
+      metaEl.textContent = meta;
+      messageEl.appendChild(metaEl);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function speakWithGemini(text, messageEl = null) {
       try {
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, mode: mode.value })
+          body: JSON.stringify({ text, mode: mode.value, accent: accent.value })
         });
-        if (!res.ok) throw new Error('TTS unavailable');
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'TTS unavailable');
         if (!data.audioBase64) throw new Error('No audio');
-        setStatus(`正在播放 Gemini TTS：${data.voice || 'voice'} · ${data.model || 'model'}`, 'ok');
+        setStatus(`正在播放 Gemini TTS：${data.voice || 'voice'} · ${data.accent || 'accent'}`, 'ok');
+        if (messageEl && data.speechScript && data.speechScript !== text) {
+          appendMeta(messageEl, 'TTS 南京话脚本：' + data.speechScript);
+        }
         const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
         await audio.play();
       } catch (err) {
@@ -261,7 +175,7 @@
         if ('speechSynthesis' in window) {
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'zh-CN';
-          u.rate = 0.88;
+          u.rate = accent.value === 'old' ? 0.82 : 0.88;
           u.pitch = 1.03;
           window.speechSynthesis.cancel();
           window.speechSynthesis.speak(u);
@@ -283,13 +197,13 @@
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, mode: mode.value })
+          body: JSON.stringify({ message, mode: mode.value, accent: accent.value })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || '请求失败');
         pending.textContent = data.reply;
-        setStatus('文字回复完成，正在生成语音…', 'ok');
-        speakWithGemini(data.reply);
+        setStatus('文字回复完成，正在生成南京口音语音…', 'ok');
+        speakWithGemini(data.reply, pending);
       } catch (err) {
         pending.textContent = '出错了：' + err.message;
         setStatus('请求失败', 'err');
@@ -311,20 +225,21 @@
       try {
         const res = await fetch('/api/health');
         const data = await res.json();
-        setStatus(data.hasGeminiKey ? `后端正常，模型：${data.textModel}` : '后端正常，但缺少 GEMINI_API_KEY', data.hasGeminiKey ? 'ok' : 'err');
+        setStatus(data.hasGeminiKey ? `后端正常：${data.app} · ${data.ttsVoice}` : '后端正常，但缺少 GEMINI_API_KEY', data.hasGeminiKey ? 'ok' : 'err');
       } catch {
         setStatus('后端连接失败', 'err');
       }
     });
 
-
     ttsTestBtn.addEventListener('click', async () => {
-      setStatus('正在测试 Gemini TTS…');
+      setStatus('正在测试 Gemini 南京口音…');
       try {
-        const res = await fetch('/api/tts-test');
+        const qs = new URLSearchParams({ mode: mode.value, accent: accent.value });
+        const res = await fetch('/api/tts-test?' + qs.toString());
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.audioBase64) throw new Error(data.error || 'TTS 测试失败');
-        setStatus(`Gemini TTS 测试成功：${data.voice || ''} · ${data.model || ''}`, 'ok');
+        setStatus(`Gemini 南京口音测试成功：${data.voice || ''} · ${data.accent || ''}`, 'ok');
+        addMessage('bot', '正在播放测试音频。', data.speechScript ? 'TTS 南京话脚本：' + data.speechScript : '');
         const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
         await audio.play();
       } catch (err) {
