@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>南京 AI 语音助手 Fixed</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: rgba(255,255,255,0.08);
+      --panel2: rgba(255,255,255,0.12);
+      --text: #f4f6fb;
+      --muted: #aeb6c8;
+      --accent: #ff8a3d;
+      --accent2: #ffd0aa;
+      --danger: #ff6b6b;
+      --ok: #65d39d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(255,138,61,.25), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(100,120,255,.18), transparent 38%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+    .app {
+      width: min(980px, 94vw);
+      margin: 0 auto;
+      padding: 36px 0 28px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .brand h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: -0.04em;
+    }
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .badge {
+      padding: 9px 13px;
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--accent2);
+      border: 1px solid rgba(255,255,255,.1);
+      white-space: nowrap;
+    }
+    .panel {
+      background: rgba(15,17,23,.74);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 24px 90px rgba(0,0,0,.32);
+      border-radius: 28px;
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 18px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.03);
+    }
+    select, button, textarea {
+      font: inherit;
+    }
+    select {
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      padding: 10px 13px;
+      outline: none;
+    }
+    .status {
+      color: var(--muted);
+      margin-left: auto;
+      font-size: 14px;
+    }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+    .chat {
+      height: min(58vh, 560px);
+      overflow: auto;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .msg {
+      max-width: 82%;
+      padding: 14px 16px;
+      border-radius: 18px;
+      line-height: 1.62;
+      white-space: pre-wrap;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--accent), #ffad69);
+      color: #1b0d04;
+      border-bottom-right-radius: 6px;
+    }
+    .msg.bot {
+      align-self: flex-start;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.1);
+      border-bottom-left-radius: 6px;
+    }
+    .composer {
+      padding: 18px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: end;
+    }
+    textarea {
+      width: 100%;
+      min-height: 54px;
+      max-height: 150px;
+      resize: vertical;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 18px;
+      padding: 14px 15px;
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      outline: none;
+      line-height: 1.5;
+    }
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 18px;
+      cursor: pointer;
+      color: #1b0d04;
+      background: var(--accent);
+      font-weight: 700;
+      min-height: 54px;
+    }
+    button.secondary {
+      color: var(--text);
+      background: rgba(255,255,255,.11);
+      border: 1px solid rgba(255,255,255,.14);
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .58;
+    }
+    .tips {
+      margin-top: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    code { color: var(--accent2); }
+    @media (max-width: 720px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .composer { grid-template-columns: 1fr; }
+      .msg { max-width: 94%; }
+      .status { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand">
+        <h1>南京 AI 语音助手</h1>
+        <p>Fixed Railway 版：修复 Gemini empty text，先稳定跑通。</p>
+      </div>
+      <div class="badge">Gemini GenerateContent · Express · No Build</div>
+    </header>
+
+    <section class="panel">
+      <div class="toolbar">
+        <label>
+          模式：
+          <select id="mode">
+            <option value="local" selected>南京味普通话</option>
+            <option value="dialect">轻南京话</option>
+            <option value="normal">普通话</option>
+          </select>
+        </label>
+        <button class="secondary" id="healthBtn">检查后端</button>
+        <span class="status" id="status">准备好了</span>
+      </div>
+
+      <div class="chat" id="chat">
+        <div class="msg bot">你好啊，我是南京 AI 助手。你可以打字，也可以点麦克风试试看。</div>
+      </div>
+
+      <div class="composer">
+        <textarea id="input" placeholder="比如：今天南京适合去哪玩？"></textarea>
+        <button class="secondary" id="micBtn">🎙️ 说话</button>
+        <button id="sendBtn">发送</button>
+      </div>
+    </section>
+
+    <div class="tips">
+      语音输入使用浏览器自带识别能力。Chrome 通常支持最好；如果按钮不可用，直接打字测试。语音输出优先 Gemini TTS，失败时自动用浏览器中文朗读。
+    </div>
+  </main>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
+    const healthBtn = document.getElementById('healthBtn');
+    const mode = document.getElementById('mode');
+    const statusEl = document.getElementById('status');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    function setStatus(text, type = '') {
+      statusEl.textContent = text;
+      statusEl.className = 'status ' + type;
+    }
+
+    function addMessage(role, text) {
+      const el = document.createElement('div');
+      el.className = 'msg ' + role;
+      el.textContent = text;
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+      return el;
+    }
+
+    async function speakWithGemini(text) {
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        if (!res.ok) throw new Error('TTS unavailable');
+        const data = await res.json();
+        if (!data.audioBase64) throw new Error('No audio');
+        const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
+        await audio.play();
+      } catch (err) {
+        if ('speechSynthesis' in window) {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'zh-CN';
+          u.rate = 0.95;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        }
+      }
+    }
+
+    async function sendMessage() {
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = '';
+      addMessage('user', message);
+      const pending = addMessage('bot', '正在想，稍等一下下…');
+      sendBtn.disabled = true;
+      micBtn.disabled = true;
+      setStatus('正在请求 Gemini…');
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, mode: mode.value })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '请求失败');
+        pending.textContent = data.reply;
+        setStatus('回复完成', 'ok');
+        speakWithGemini(data.reply);
+      } catch (err) {
+        pending.textContent = '出错了：' + err.message;
+        setStatus('请求失败', 'err');
+      } finally {
+        sendBtn.disabled = false;
+        micBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    healthBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        setStatus(data.hasGeminiKey ? `后端正常，模型：${data.textModel}` : '后端正常，但缺少 GEMINI_API_KEY', data.hasGeminiKey ? 'ok' : 'err');
+      } catch {
+        setStatus('后端连接失败', 'err');
+      }
+    });
+
+    if (!SpeechRecognition) {
+      micBtn.disabled = true;
+      micBtn.textContent = '不支持语音';
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => setStatus('正在听你说话…');
+      recognition.onerror = (e) => setStatus('语音识别失败：' + e.error, 'err');
+      recognition.onend = () => {
+        if (!input.value.trim()) setStatus('准备好了');
+      };
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        input.value = text;
+        setStatus('已识别：' + text, 'ok');
+        setTimeout(sendMessage, 200);
+      };
+
+      micBtn.addEventListener('click', () => {
+        try {
+          recognition.start();
+        } catch {
+          setStatus('麦克风已经在工作', 'err');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
