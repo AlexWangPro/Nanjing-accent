@@ -1,21 +1,17 @@
-# 南京 Gemini 语音助手 · 声音增强版
+# 南京 Gemini 语音助手 V3 - TTS 修复版
 
-这是一个 Railway 可部署的超轻量版本：Express + 静态页面 + Gemini REST API。
+这版修复了 V2 中 Gemini TTS 已返回 `steps[].content[].mime_type = audio/l16` 和 `data`，但后端没有正确解析的问题。
 
-## 本版重点
+## 这版修复了什么
 
-- 仍然只有一个核心依赖：express
-- 没有 Dockerfile
-- 没有 React / Vite / @google/genai
-- 强化南京本地化文本 Prompt
-- 强化 Gemini TTS 导演式 Prompt
-- 默认声音从 Kore 改为 Achird，避免过于生硬
-- 页面会明确显示：正在播放 Gemini TTS，还是已回退浏览器朗读
-- 新增“测试声音”按钮和 `/api/tts-test`
+- 支持解析 `output_audio.data`
+- 支持解析 `steps[].content[].data`
+- 支持解析 `mime_type: audio/l16`
+- 自动把 Gemini raw PCM / Linear16 封装成浏览器可播放的 WAV
+- `/api/health` 显示版本 `nanjing-gemini-nanjing-voice-v3`
+- 成功生成音频时 Railway Logs 会显示 `[tts audio ok]`
 
 ## Railway Variables
-
-建议：
 
 ```env
 GEMINI_API_KEY=你的 Google AI Studio API Key
@@ -25,25 +21,25 @@ GEMINI_TTS_VOICE=Achird
 NODE_ENV=production
 ```
 
-如果 `gemini-3.1-flash-tts-preview` 不可用，可以试：
+如果 TTS 模型不可用，可以尝试：
 
 ```env
 GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 ```
 
-声音可试：
+可试的声音：
 
 ```env
+GEMINI_TTS_VOICE=Achird
 GEMINI_TTS_VOICE=Sulafat
 GEMINI_TTS_VOICE=Callirrhoe
-GEMINI_TTS_VOICE=Achird
 GEMINI_TTS_VOICE=Aoede
 GEMINI_TTS_VOICE=Puck
 ```
 
-## 部署文件
+## 部署
 
-仓库根目录只保留：
+新建 GitHub 仓库，根目录只保留：
 
 ```text
 public/
@@ -54,7 +50,7 @@ README.md
 .gitignore
 ```
 
-不要上传：
+不要有：
 
 ```text
 Dockerfile
@@ -62,16 +58,18 @@ vite.config.js
 src/
 client/
 node_modules/
-package-lock.json
 ```
 
-## 判断你听到的是不是 Gemini TTS
+Railway 连接新仓库部署即可。
 
-打开网页点击“测试声音”。
+## 测试
 
-- 如果状态显示 `Gemini TTS 测试成功`，说明听到的是 Gemini TTS。
-- 如果状态显示 `Gemini TTS 失败，已回退浏览器朗读`，说明听到的是浏览器机器人声音，需要看 Railway Logs 里的 `[tts error]`。
+1. 打开 `/api/health`，确认 app 是 `nanjing-gemini-nanjing-voice-v3`。
+2. 页面点击“测试声音”。
+3. Railway Logs 应该出现：
 
-## 局限
+```text
+[tts audio ok] { mime: 'audio/l16', sampleRate: 24000, base64Length: ... }
+```
 
-Gemini TTS 可以控制语气、语速、风格和轻微口音，但它不是专门训练的南京方言 TTS。真正像南京本地人的声音，需要后期用南京本地人录音做专属 TTS/声音克隆。
+如果还有失败，把 `[tts error]` 和 `[tts empty audio raw]` 发回来。

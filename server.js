@@ -184,25 +184,72 @@ async function callGeminiText(input, mode) {
   return text;
 }
 
-function extractPcmAudio(data) {
-  // Interactions API
-  if (data?.output_audio?.data) return data.output_audio.data;
+function isLikelyBase64(value) {
+  if (typeof value !== 'string') return false;
+  const s = value.trim();
+  if (s.length < 80) return false;
+  return /^[A-Za-z0-9+/=\r\n]+$/.test(s);
+}
 
-  // Some API responses may expose events/steps. Keep this for resilience.
+function getPartMime(part) {
+  return part?.mime_type || part?.mimeType || part?.inlineData?.mimeType || part?.inline_data?.mime_type || '';
+}
+
+function getPartData(part) {
+  return part?.data || part?.inlineData?.data || part?.inline_data?.data || '';
+}
+
+function parseAudioRate(mime = '') {
+  const match = String(mime).match(/rate=(\d+)/i);
+  if (match) return Number(match[1]);
+  // Gemini TTS examples write raw PCM as WAV at 24 kHz.
+  return 24000;
+}
+
+function extractPcmAudio(data) {
+  const candidates = [];
+
+  // Interactions SDK-style response from official examples.
+  if (data?.output_audio?.data) {
+    candidates.push({ data: data.output_audio.data, mime: data.output_audio.mime_type || data.output_audio.mimeType || 'audio/l16' });
+  }
+
+  // Interactions REST response may return audio in steps[].content[].
+  if (Array.isArray(data?.steps)) {
+    for (const step of data.steps) {
+      const content = Array.isArray(step?.content) ? step.content : [];
+      for (const part of content) {
+        candidates.push({ data: getPartData(part), mime: getPartMime(part) });
+      }
+    }
+  }
+
+  // Streaming/event-like shapes, kept for resilience.
   const maybeEvents = Array.isArray(data?.events) ? data.events : [];
   for (const event of maybeEvents) {
-    if (event?.delta?.type === 'audio' && event?.delta?.data) return event.delta.data;
-    if (event?.output_audio?.data) return event.output_audio.data;
+    if (event?.delta?.type === 'audio' && event?.delta?.data) {
+      candidates.push({ data: event.delta.data, mime: event.delta.mime_type || event.delta.mimeType || 'audio/l16' });
+    }
+    if (event?.output_audio?.data) {
+      candidates.push({ data: event.output_audio.data, mime: event.output_audio.mime_type || event.output_audio.mimeType || 'audio/l16' });
+    }
   }
 
-  // GenerateContent-style shape, just in case Google routes it that way.
+  // GenerateContent-style shape, in case Google routes it that way.
   const parts = data?.candidates?.[0]?.content?.parts || [];
   for (const part of parts) {
-    if (part?.inlineData?.data) return part.inlineData.data;
-    if (part?.inline_data?.data) return part.inline_data.data;
+    candidates.push({ data: getPartData(part), mime: getPartMime(part) });
   }
 
-  return '';
+  for (const item of candidates) {
+    const mime = String(item.mime || '').toLowerCase();
+    const raw = String(item.data || '').trim();
+    if (!isLikelyBase64(raw)) continue;
+    if (mime && !mime.includes('audio') && !mime.includes('l16') && !mime.includes('pcm')) continue;
+    return { pcmBase64: raw, sampleRate: parseAudioRate(mime), mime: item.mime || 'audio/l16' };
+  }
+
+  return { pcmBase64: '', sampleRate: 24000, mime: '' };
 }
 
 async function callGeminiTts(text, mode) {
@@ -235,18 +282,26 @@ async function callGeminiTts(text, mode) {
     throw new Error(message);
   }
 
-  const pcmBase64 = extractPcmAudio(data);
-  if (!pcmBase64) {
-    console.error('[tts empty audio raw]', JSON.stringify(data, null, 2).slice(0, 2000));
-    throw new Error('Gemini returned empty audio');
+  const audio = extractPcmAudio(data);
+  if (!audio.pcmBase64) {
+    console.error('[tts empty audio raw]', JSON.stringify({
+      status: data?.status,
+      outputAudio: Boolean(data?.output_audio?.data),
+      stepCount: Array.isArray(data?.steps) ? data.steps.length : 0,
+      stepContent: Array.isArray(data?.steps) ? data.steps.map(step => (step?.content || []).map(part => ({ mime: getPartMime(part), hasData: Boolean(getPartData(part)), dataLength: String(getPartData(part) || '').length }))) : [],
+      rawPreview: JSON.stringify(data).slice(0, 1200)
+    }, null, 2));
+    throw new Error('Gemini returned audio response, but no readable audio data was found');
   }
-  return pcmToWavBase64(pcmBase64);
+
+  console.log('[tts audio ok]', { mime: audio.mime, sampleRate: audio.sampleRate, base64Length: audio.pcmBase64.length });
+  return pcmToWavBase64(audio.pcmBase64, audio.sampleRate);
 }
 
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
-    app: 'nanjing-gemini-nanjing-voice-v2',
+    app: 'nanjing-gemini-nanjing-voice-v3',
     hasGeminiKey: Boolean(GEMINI_API_KEY),
     textModel: GEMINI_TEXT_MODEL,
     ttsModel: GEMINI_TTS_MODEL,
@@ -321,5 +376,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Nanjing Gemini Voice V2 running on 0.0.0.0:${PORT}`);
+  console.log(`Nanjing Gemini Voice V3 running on 0.0.0.0:${PORT}`);
 });
